@@ -3,9 +3,9 @@ import org.apache.kafka.common.serialization.StringSerializer
 import org.apache.kafka.streams.StreamsConfig
 
 import java.time.Instant
-import java.util.Properties
+import java.util.{Properties, UUID}
 
-case class bee(Id: Int, x: Int, y: Int, timestamp: Long)
+case class bee(Id: String, x: Int, y: Int, timestamp: Long)
 
 object GenerateBeeFlight extends App {
     val N = 10
@@ -26,12 +26,15 @@ object GenerateBeeFlight extends App {
     props.put("linger.ms", 1)
     props.put("retries", 0)
 
+    var idArray = List.empty[String]
+    (1 to N).foreach(i=> idArray = idArray:+UUID.randomUUID().toString)
+
     val producer: Producer[String, String] = new KafkaProducer[String, String](props)
     (1 to 100).foreach { i =>
         Thread.sleep(100)
-        val pickBee = bee(Id = genId(N), x = genX(W), y = genX(H), timestamp = genTimestamp())
-        println(s"${pickBee.Id}, ${pickBee.x},${pickBee.y},${pickBee.timestamp}")
-        val msgg = new ProducerRecord[String, String]("events", pickBee.Id.toString, s"${pickBee.Id}, ${pickBee.x},${pickBee.y},${pickBee.timestamp}")
+        val pickBee = bee(Id = idArray(genId(N)), x = genX(W), y = genX(H), timestamp = genTimestamp())
+        println(s"${pickBee.Id},${pickBee.x},${pickBee.y},${pickBee.timestamp}")
+        val msgg = new ProducerRecord[String, String]("events", pickBee.Id, s"${pickBee.Id},${pickBee.x},${pickBee.y},${pickBee.timestamp}")
         producer.send(msgg)
     }
     producer.flush()

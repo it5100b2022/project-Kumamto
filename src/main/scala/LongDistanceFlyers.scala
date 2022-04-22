@@ -11,6 +11,10 @@ import org.apache.kafka.streams.{KafkaStreams, StreamsConfig}
 import java.nio.charset.StandardCharsets
 import java.time.Duration
 import java.util.Properties
+import scala.collection.mutable.ListBuffer
+import scala.math.abs
+
+
 
 case class Longbee(x:Int=0, y:Int=0, sum:Int=0)
 
@@ -42,18 +46,17 @@ object LongDistanceFlyers extends App {
   props.put(StreamsConfig.CACHE_MAX_BYTES_BUFFERING_CONFIG, 0)
 
   val builder = new StreamsBuilder
-
   val stream = builder.stream[String, String]("events")
 
   stream.groupByKey.aggregate(Longbee())(Function.untupled{
-    case(_:String, data:String, Longbee(x, y, sum)) if sum < 10 =>Longbee(data.split(",")(1).toInt,
-      data.split(",")(2).toInt, sum + (data.split(",")(1).toInt - x)*(data.split(",")(2).toInt - y))
-    case(_:String, data:String, Longbee(_, _, sum)) if sum >= 10 =>Longbee(data.split(",")(1).toInt,
-      data.split(",")(2).toInt, 10)
-  })(materializer).toStream.filter((_, Longbee)=>Longbee.sum == 10).mapValues({
+    case(_:String, data:String, Longbee(x, y, sum)) if sum <= 10 => Longbee(data.split(",")(1).toInt,
+      data.split(",")(2).toInt, sum + abs(data.split(",")(1).toInt - x)*abs(data.split(",")(2).toInt - y))
+    case(_:String, data:String, Longbee(x, y, sum)) if sum > 10 => Longbee(data.split(",")(1).toInt,
+      data.split(",")(2).toInt, Integer.MIN_VALUE)
+  })(materializer).toStream.filter((_:String, data:Longbee)=>data.sum > 10).mapValues({
     case(key:String, data:Longbee)=>
-      val output = s"Bee with id${key} is a long traveller"
-      output
+      println(s"Bee with id ${key} is a long traveller,${data.sum}")
+      key
   }:(String, Longbee)=>String).to("long-distance-travellers")
 
   val streams: KafkaStreams = new KafkaStreams(builder.build(), props)
@@ -64,3 +67,5 @@ object LongDistanceFlyers extends App {
   }
 
 }
+
+
