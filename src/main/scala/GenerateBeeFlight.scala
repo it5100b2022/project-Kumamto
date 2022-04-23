@@ -8,16 +8,19 @@ import java.util.{Properties, UUID}
 case class bee(Id: String, x: Int, y: Int, timestamp: Long)
 
 object GenerateBeeFlight extends App {
+    //Can change the number of bees here
     val N = 10
+    //Can change W here
     val W = 10
+    //Can change H here
     val H = 10
-
-    def genId(N: Int):Int = scala.util.Random.nextInt(N)
-    def genX(W: Int):Int = scala.util.Random.nextInt(W)
-    def genY(H: Int):Int = scala.util.Random.nextInt(H)
-    def genTimestamp():Long = Instant.now.getEpochSecond
-
     val props: Properties = new Properties()
+    val producer: Producer[String, String] = new KafkaProducer[String, String](props)
+    var idArray = List.empty[String]
+
+    def genId(N: Int): Int = scala.util.Random.nextInt(N)
+
+    def genX(W: Int): Int = scala.util.Random.nextInt(W)
     props.put(StreamsConfig.APPLICATION_ID_CONFIG, "wordcount-application")
     props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092")
     props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, classOf[StringSerializer].getName)
@@ -26,10 +29,12 @@ object GenerateBeeFlight extends App {
     props.put("linger.ms", 1)
     props.put("retries", 0)
 
-    var idArray = List.empty[String]
-    (1 to N).foreach(i=> idArray = idArray:+UUID.randomUUID().toString)
+    def genY(H: Int): Int = scala.util.Random.nextInt(H)
+    (1 to N).foreach(i => idArray = idArray :+ UUID.randomUUID().toString)
 
-    val producer: Producer[String, String] = new KafkaProducer[String, String](props)
+    def genTimestamp(): Long = Instant.now.getEpochSecond
+
+    //Can change the number of messages
     (1 to 100).foreach { i =>
         Thread.sleep(100)
         val pickBee = bee(Id = idArray(genId(N)), x = genX(W), y = genX(H), timestamp = genTimestamp())

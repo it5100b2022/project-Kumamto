@@ -40,25 +40,27 @@ object CountBeeLandings extends App {
     props.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.stringSerde.getClass)
     props.put(StreamsConfig.CACHE_MAX_BYTES_BUFFERING_CONFIG, 0)
 
-    val windowSize = Duration.ofMillis(10)
 
-    implicit val materializer: Materialized[String, Beeresult, ByteArrayWindowStore] =
-        Materialized.as[String, Beeresult](Stores.inMemoryWindowStore("bee-store", Duration.ofHours(1), windowSize, true))
+    val streams: KafkaStreams = new KafkaStreams(makeCountBeeLandingsTopology(10, "events", "bee-counts"), props)
 
-    val builder = new StreamsBuilder
-    val stream = builder.stream[String, String]("events")
+    def makeCountBeeLandingsTopology(T: Int, inputTopic: String, outputTopic: String) = {
+        implicit val materializer: Materialized[String, Beeresult, ByteArrayWindowStore] =
+            Materialized.as[String, Beeresult](Stores.inMemoryWindowStore("bee-store", Duration.ofHours(1), Duration.ofMillis(T), true))
 
-    stream.selectKey((k: String, v: String) => s"${v.split(",")(1)}, ${v.split(",")(2)}").mapValues((k, v) =>
-        s"${v.split(",")(0)},${v.split(",")(3)}").groupByKey.windowedBy(TimeWindows.ofSizeWithNoGrace(windowSize)).aggregate(Beeresult())(Function.untupled {
-        case (_: String, data: String, Beeresult(beelist)) if !beelist.contains(data.split(",")(0)) => Beeresult(beelist.appended(data.split(",")(0)))
-    })(materializer).toStream.mapValues((window, Beeresult) =>{
-      val output = Beeresult.beelist.size.toString
-      println(window)
-      println(Beeresult)
-      output
-    }).to("bee-counts")
+        val builder = new StreamsBuilder
+        val stream = builder.stream[String, String](inputTopic)
 
-    val streams: KafkaStreams = new KafkaStreams(builder.build(), props)
+        stream.selectKey((k: String, v: String) => s"${v.split(",")(1)}, ${v.split(",")(2)}").mapValues((k, v) =>
+            s"${v.split(",")(0)},${v.split(",")(3)}").groupByKey.windowedBy(TimeWindows.ofSizeWithNoGrace(Duration.ofMillis(T))).aggregate(Beeresult())(Function.untupled {
+            case (_: String, data: String, Beeresult(beelist)) if !beelist.contains(data.split(",")(0)) => Beeresult(beelist.appended(data.split(",")(0)))
+        })(materializer).toStream.mapValues((window, Beeresult) => {
+            val output = Beeresult.beelist.size.toString
+            println(output)
+            output
+        }).to(outputTopic)
+        builder.build()
+    }
+
     streams.start()
 
     sys.ShutdownHookThread {
