@@ -9,7 +9,8 @@ val deps = Seq(
   "org.apache.kafka" %% "kafka-streams-scala" % "3.1.0",
   "org.apache.kafka" %% "kafka" % "3.1.0",
   "org.slf4j" % "slf4j-simple" % "1.7.36",
-  "org.postgresql" % "postgresql" % "42.3.2"
+  "org.postgresql" % "postgresql" % "42.3.2",
+  "org.apache.kafka" % "kafka-streams-test-utils" % "3.1.0" % Test,
 )
 
 lazy val root = project
