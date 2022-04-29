@@ -35,7 +35,7 @@ object GenerateBeeFlight extends App {
     def genTimestamp(): Long = Instant.now.getEpochSecond
 
     //Can change the number of messages
-    (1 to 100).foreach { i =>
+    while(true) {
         Thread.sleep(100)
         val pickBee = bee(Id = idArray(genId(N)), x = genX(W), y = genX(H), timestamp = genTimestamp())
         println(s"${pickBee.Id},${pickBee.x},${pickBee.y},${pickBee.timestamp}")
